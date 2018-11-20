@@ -24,9 +24,11 @@ import com.example.littlejie.tabledemo.Util;
 public abstract class BasicTableRender {
 
   private static final String TAG = BasicTableRender.class.getSimpleName();
+  private static final float HALF_DIVIDER_WIDTH = Util.dpToPx(0.25f);
   private Context context;
   protected Paint backgroundPaint;
   protected TextPaint textPaint;
+  private TextPaint headerPaint;
 
   protected int colorHeaderBg;
   protected int colorHeaderText;
@@ -35,7 +37,7 @@ public abstract class BasicTableRender {
 
   private long startTimeInMills;
   private long endTimeInMills;
-  protected List<Column> columns;
+  protected Row header = new Row();
   protected List<Row> rows;
   private SparseArray<StaticLayout> array = new SparseArray<>();
   private List<Integer> rowHeightArray = new ArrayList<>();
@@ -45,53 +47,88 @@ public abstract class BasicTableRender {
     this.startTimeInMills = startTimeInMills;
     this.endTimeInMills = endTimeInMills;
 
-    backgroundPaint = new Paint();
-    backgroundPaint.setAntiAlias(true);
-
-    textPaint = new TextPaint();
-    textPaint.setAntiAlias(true);
     colorHeaderBg = context.getResources().getColor(R.color.colorTableHeaderBg);
-    colorHeaderText = Color.WHITE;
+    colorHeaderText = context.getResources().getColor(android.R.color.white);
     colorTableBg = context.getResources().getColor(R.color.colorTableContentBg);
     colorTableText = context.getResources().getColor(R.color.colorTableText);
-
+    initPaint();
     initColumns();
     initRow();
+    updateCellWidth();
 
     measureHeaderHeight();
     measureEveryRowHeight();
   }
 
+  private void initPaint() {
+    backgroundPaint = new Paint();
+    backgroundPaint.setAntiAlias(true);
+    textPaint = new TextPaint();
+    textPaint.setAntiAlias(true);
+    textPaint.setColor(colorTableText);
+    textPaint.setTextSize(context.getResources().getDimensionPixelSize(R.dimen.table_content_text_size));
+    headerPaint = new TextPaint();
+    headerPaint.setAntiAlias(true);
+    headerPaint.setColor(colorHeaderText);
+    headerPaint.setTextSize(context.getResources().getDimensionPixelSize(R.dimen.table_header_text_size));
+  }
+
+  private void updateCellWidth() {
+    for (Row row : rows) {
+      for (int i = 0; i < getColumnNum(); i++) {
+        Cell cell = header.getCell(i);
+        row.getCell(i).setWidth(cell.getWidth());
+      }
+    }
+  }
+
   public void draw(Canvas canvas) {
     int xOffset = 0;
     Rect rect = new Rect();
-    for (Column column : getColumns()) {
+    //绘制表头
+    for (int i = 0; i < getColumnNum(); i++) {
+      Cell cell = header.getCell(i);
       rect.left = xOffset;
       rect.top = 0;
-      rect.right = xOffset + column.getWidth();
+      rect.right = xOffset + cell.getWidth();
       rect.bottom = getHeight(0);
-      drawHeader(canvas, column, rect);
+      cell.setRect(rect);
+      drawHeader(canvas, cell);
+      drawHeaderBorder(canvas, cell);
+      xOffset += cell.getWidth();
     }
-    drawHeaderDivider(canvas);
 
+    //绘制表格数据
+    int yOffset = getHeight(0);
     for (int i = 0; i < rows.size(); i++) {
       Row row = rows.get(i);
-      drawRow(canvas, row, getHeight(i + 1));
+      int rowHeight = getHeight(i + 1);
+      xOffset = 0;
+      for (int j = 0; j < getColumnNum(); j++) {
+        Cell cell = row.getCell(j);
+        rect.left = xOffset;
+        rect.top = yOffset;
+        rect.right = xOffset + cell.getWidth();
+        rect.bottom = yOffset + rowHeight;
+        cell.setRect(rect);
+        drawCellBackground(canvas, cell);
+        drawCell(canvas, cell);
+        drawCellBorder(canvas, cell);
+        xOffset += cell.getWidth();
+      }
+      yOffset += rowHeight;
     }
-    drawRowDivider(canvas);
+
   }
 
-  public List<Column> getColumns() {
-    if (columns == null) {
-      initColumns();
-    }
-    return columns;
+  protected int getColumnNum() {
+    return header.getCells().size();
   }
 
   public int getMeasuredWidth() {
     int width = 0;
-    for (Column column : getColumns()) {
-      width += column.getWidth();
+    for (Cell cell : header.getCells().values()) {
+      width += cell.getWidth();
     }
     return width;
   }
@@ -108,65 +145,112 @@ public abstract class BasicTableRender {
 
   protected abstract void initRow();
 
-  public abstract void drawHeader(Canvas canvas, Column column, Rect rect);
+  /**
+   * 绘制表头.
+   *
+   * @param canvas
+   * @param cell   列
+   */
+  protected void drawHeader(Canvas canvas, Cell cell) {
+    Rect rect = cell.getRect();
+    int height = rect.height() / 2;
+    //中点坐标(xOffset + column.getWidth() / 2, 100)
+    backgroundPaint.setColor(colorHeaderBg);
+    canvas.drawRect(rect, backgroundPaint);
 
-  public abstract void drawRow(Canvas canvas, Row row, int height);
+    //居中绘制折行文字
+    //StaticLayout是默认画在Canvas的(0,0)点
+    canvas.save();
+    canvas.translate(rect.left + rect.width() / 2, height);
+    StaticLayout staticLayout = getStaticLayout(cell.hashCode());
+    canvas.translate(-staticLayout.getWidth() / 2, -staticLayout.getHeight() / 2);
+    staticLayout.draw(canvas);
+    canvas.restore();
+  }
 
-  public void drawHeaderDivider(Canvas canvas) {
-    int xOffset = 0;
+  /**
+   * 绘制表格单元格.
+   *
+   * @param canvas
+   * @param cell
+   */
+  protected void drawCell(Canvas canvas, Cell cell) {
+    canvas.save();
+    Rect rect = cell.getRect();
+    canvas.translate(rect.left + cell.getWidth() / 2, rect.top + rect.height() / 2);
+    //居中绘制折行文字
+    //StaticLayout是默认画在Canvas的(0,0)点
+    StaticLayout staticLayout = getStaticLayout(cell.hashCode());
+    canvas.translate(-staticLayout.getWidth() / 2, -staticLayout.getHeight() / 2);
+    staticLayout.draw(canvas);
+    canvas.restore();
+  }
+
+  /**
+   * 绘制单元格背景.
+   *
+   * @param canvas
+   * @param cell
+   */
+  public void drawCellBackground(Canvas canvas, Cell cell) {
+
+  }
+
+  protected void drawHeaderBorder(Canvas canvas, Cell cell) {
     backgroundPaint.setColor(Color.WHITE);
-    int maxHeight = rowHeightArray.get(0);
-    for (int i = 0; i < getColumns().size(); i++) {
-      if (i != getColumns().size() - 1) {
-        canvas.save();
-        Column column = getColumns().get(i);
-        canvas.translate(xOffset + column.getWidth() - 1, 0);
-        canvas.drawLine(0, 0, 2, maxHeight, backgroundPaint);
-        xOffset += column.getWidth();
-        canvas.restore();
-      }
+    Rect rect = cell.getRect();
+    if (cell.getColumn() != getColumnNum() - 1) {
+      canvas.drawRect(rect.right - HALF_DIVIDER_WIDTH, rect.top,
+          rect.right + HALF_DIVIDER_WIDTH, rect.bottom, backgroundPaint);
     }
   }
 
-  public void drawRowDivider(Canvas canvas) {
-
+  public void drawCellBorder(Canvas canvas, Cell cell) {
+    backgroundPaint.setColor(Color.BLACK);
+    Rect rect = cell.getRect();
+    if (cell.getColumn() == 0) {
+      canvas.drawRect(rect.left, rect.top,
+          rect.left + HALF_DIVIDER_WIDTH * 2, rect.bottom, backgroundPaint);
+    }
+    canvas.drawRect(rect.right - HALF_DIVIDER_WIDTH, rect.top,
+        rect.right + HALF_DIVIDER_WIDTH, rect.bottom, backgroundPaint);
+    canvas.drawRect(rect.left, rect.bottom - HALF_DIVIDER_WIDTH * 2,
+        rect.right, rect.bottom, backgroundPaint);
   }
 
   private void measureHeaderHeight() {
     int maxHeight = 0;
-    textPaint.setColor(colorHeaderText);
-    textPaint.setTextSize(context.getResources().getDimensionPixelSize(R.dimen.table_header_text_size));
-    for (Column column : getColumns()) {
-      String name = column.getName();
+    for (Cell cell : header.getCells().values()) {
+      String name = cell.getContent();
       StaticLayout staticLayout = getStaticLayout(name.hashCode());
       if (staticLayout == null) {
-        staticLayout = new StaticLayout(name, textPaint, column.getWidth(), Layout.Alignment.ALIGN_CENTER, 1.0f, 1.0f, false);
+        staticLayout = new StaticLayout(name, headerPaint, cell.getWidth(),
+            Layout.Alignment.ALIGN_CENTER, 1.0f, 1.0f, false);
       }
       if (staticLayout.getHeight() > maxHeight) {
         maxHeight = staticLayout.getHeight();
       }
-      array.append(column.hashCode(), staticLayout);
+      array.append(cell.hashCode(), staticLayout);
     }
     Log.d(TAG, "maxHeight = " + maxHeight);
     rowHeightArray.add(maxHeight + Util.dpToPx(4) * 2);
   }
 
   private void measureEveryRowHeight() {
-    textPaint.setColor(colorTableText);
-    textPaint.setTextSize(context.getResources().getDimensionPixelSize(R.dimen.table_content_text_size));
     for (int i = 0; i < rows.size(); i++) {
       int maxHeight = 0;
       Row row = rows.get(i);
-      for (Column column : getColumns()) {
-        String cellValue = row.getCellValue(column.getName());
-        StaticLayout staticLayout = getStaticLayout(cellValue.hashCode());
+      for (Cell cell : row.getCells().values()) {
+        String value = cell.getContent();
+        StaticLayout staticLayout = getStaticLayout(cell.hashCode());
         if (staticLayout == null) {
-          staticLayout = new StaticLayout(row.getCellValue(column.getName()), textPaint, column.getWidth(), Layout.Alignment.ALIGN_CENTER, 1.0f, 1.0f, false);
+          staticLayout = new StaticLayout(value, textPaint, cell.getWidth(),
+              Layout.Alignment.ALIGN_CENTER, 1.0f, 1.0f, false);
         }
         if (staticLayout.getHeight() > maxHeight) {
           maxHeight = staticLayout.getHeight();
         }
-        array.append(row.getCellValue(column.getName()).hashCode(), staticLayout);
+        array.append(cell.hashCode(), staticLayout);
       }
       rowHeightArray.add(maxHeight + Util.dpToPx(4) * 2);
     }

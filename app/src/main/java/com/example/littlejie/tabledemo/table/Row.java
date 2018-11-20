@@ -10,28 +10,20 @@ import java.util.Map;
  * Author: lishengjie@bongmi.com.
  */
 public class Row {
-  private Map<String, String> cells = new HashMap<>();
+  private Map<Integer, Cell> cellMap = new HashMap<>();
 
   public Row() {
   }
 
-  public Row(Map<String, String> cells) {
-    this.cells = cells;
+  public void addCell(int column, Cell cell) {
+    cellMap.put(column, cell);
   }
 
-  public Map<String, String> getCells() {
-    return cells;
+  public Cell getCell(int column) {
+    return cellMap.get(column);
   }
 
-  public void setCells(Map<String, String> cells) {
-    this.cells = cells;
-  }
-
-  public void addCell(String key, String value) {
-    cells.put(key, value);
-  }
-
-  public String getCellValue(String key) {
-    return cells.get(key);
+  public Map<Integer, Cell> getCells() {
+    return cellMap;
   }
 }

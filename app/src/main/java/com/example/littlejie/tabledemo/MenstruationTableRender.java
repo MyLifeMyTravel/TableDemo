@@ -5,10 +5,9 @@ import java.util.Random;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Rect;
-import android.text.StaticLayout;
+import android.graphics.Color;
 import com.example.littlejie.tabledemo.table.BasicTableRender;
-import com.example.littlejie.tabledemo.table.Column;
+import com.example.littlejie.tabledemo.table.Cell;
 import com.example.littlejie.tabledemo.table.Row;
 
 import cn.lollypop.be.model.bodystatus.MenstruationInfo;
@@ -28,14 +27,13 @@ public class MenstruationTableRender extends BasicTableRender {
 
   @Override
   protected void initColumns() {
-    columns = new ArrayList<>();
-    columns.add(new Column("日期", Util.dpToPx(48)));
-    columns.add(new Column("周期", Util.dpToPx(48)));
-    columns.add(new Column("经期", Util.dpToPx(140)));
-    columns.add(new Column("经期颜色", Util.dpToPx(140)));
-    columns.add(new Column("经期流量", Util.dpToPx(140)));
-    columns.add(new Column("痛经", Util.dpToPx(140)));
-    columns.add(new Column("血块", Util.dpToPx(140)));
+    header.addCell(0, new Cell(0, 0, "日期", Util.dpToPx(48)));
+    header.addCell(1, new Cell(0, 1, "周期", Util.dpToPx(48)));
+    header.addCell(2, new Cell(0, 2, "经期", Util.dpToPx(140)));
+    header.addCell(3, new Cell(0, 3, "经期颜色", Util.dpToPx(140)));
+    header.addCell(4, new Cell(0, 4, "经期流量", Util.dpToPx(140)));
+    header.addCell(5, new Cell(0, 5, "痛经", Util.dpToPx(140)));
+    header.addCell(6, new Cell(0, 6, "血块", Util.dpToPx(140)));
   }
 
   @Override
@@ -50,16 +48,15 @@ public class MenstruationTableRender extends BasicTableRender {
       menstruationInfo.setVolume(random.nextInt(4));
 
       Row row = new Row();
-      for (int j = 0; j < getColumns().size(); j++) {
-        Column column = getColumns().get(j);
+      for (int j = 0; j < getColumnNum(); j++) {
         if (j == 0) {
-          row.addCell(column.getName(), "3/1");
+          row.addCell(j, new Cell(i, j, "3/1"));
         } else if (j == 1) {
-          row.addCell(column.getName(), "1");
+          row.addCell(j, new Cell(i, j, "1"));
         } else if (j == 2) {
-          row.addCell(column.getName(), "第1天");
+          row.addCell(j, new Cell(i, j, "第1天"));
         } else {
-          row.addCell(column.getName(), "浅红");
+          row.addCell(j, new Cell(i, j, "浅红"));
         }
       }
       rows.add(row);
@@ -67,45 +64,13 @@ public class MenstruationTableRender extends BasicTableRender {
   }
 
   @Override
-  public void drawHeader(Canvas canvas, Column column, Rect rect) {
-    int height = rect.height() / 2;
-    canvas.save();
-
-    //中点坐标(xOffset + column.getWidth() / 2, 100)
-    canvas.translate(rect.left + rect.width() / 2, height);
-
-    backgroundPaint.setColor(colorHeaderBg);
-    //Rect rect = new Rect(-column.getWidth() / 2, -height, column.getWidth() / 2, height);
-    canvas.drawRect(rect, backgroundPaint);
-
-    //居中绘制折行文字
-    //StaticLayout是默认画在Canvas的(0,0)点
-    StaticLayout staticLayout = getStaticLayout(column.hashCode());
-    canvas.translate(-staticLayout.getWidth() / 2, -staticLayout.getHeight() / 2);
-    staticLayout.draw(canvas);
-
-    canvas.restore();
-  }
-
-  @Override
-  public void drawRow(Canvas canvas, Row row, int height) {
-    int h = getHeight(0);
-    int xOffset = 0;
-    for (Column column : getColumns()) {
-      canvas.save();
-
-      canvas.translate(xOffset + column.getWidth() / 2, h + height / 2);
-
-      //居中绘制折行文字
-      //StaticLayout是默认画在Canvas的(0,0)点
-      StaticLayout staticLayout = getStaticLayout(row.getCellValue(column.getName()).hashCode());
-      canvas.translate(-staticLayout.getWidth() / 2, -staticLayout.getHeight() / 2);
-      staticLayout.draw(canvas);
-
-      canvas.restore();
-
-      xOffset += column.getWidth();
+  public void drawCellBackground(Canvas canvas, Cell cell) {
+    Random random = new Random();
+    int color = Color.rgb(random.nextInt(255), random.nextInt(255), random.nextInt(255));
+    backgroundPaint.setColor(color);
+    if (cell.getColumn() == 0 || cell.getColumn() == 1) {
+      backgroundPaint.setColor(colorTableBg);
     }
-    h += height;
+    canvas.drawRect(cell.getRect(), backgroundPaint);
   }
 }

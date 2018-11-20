@@ -1,18 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<HorizontalScrollView
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:fadingEdge="none"
-    android:overScrollMode="never"
-    android:scrollbars="none"
+    android:orientation="vertical"
     tools:context=".MainActivity">
 
-  <com.example.littlejie.tabledemo.table.Table
-      android:id="@+id/table"
-      android:layout_width="wrap_content"
+  <HorizontalScrollView
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:background="@color/colorAccent"/>
+      android:fadingEdge="none"
+      android:overScrollMode="never"
+      android:scrollbars="none">
 
-</HorizontalScrollView>
+    <com.example.littlejie.tabledemo.table.Table
+        android:id="@+id/table"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+  </HorizontalScrollView>
+
+  <ImageView
+      android:id="@+id/iv"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"/>
+
+</LinearLayout>
